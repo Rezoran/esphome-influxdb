@@ -1,6 +1,7 @@
 #include "influxdb_writer.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
+#include "esphome/components/http_request/http_request_arduino.h"
 #include <algorithm>
 #include <string>
 
@@ -18,32 +19,12 @@ void InfluxDBWriter::setup() {
   for (auto fun : setup_callbacks)
     objs.push_back(fun());
 
-  this->service_url = "http://" + this->host + ":" + to_string(this->port) +
-                      "/write?db=" + this->database;
+  this->service_url = "http://" + this->host + ":" + to_string(this->port) + "/write?db=" + this->database;
 
-  this->request_ = new http_request::HttpRequestComponent();
+  this->request_ = new http_request::HttpRequestArduino();
   this->request_->setup();
-
-  std::list<http_request::Header> headers;
-  http_request::Header header;
-  header.name = "Content-Type";
-  header.value = "text/plain";
-  headers.push_back(header);
-  if ((this->username.length() > 0) && (this->password.length() > 0)) {
-    header.name = "u";
-    header.value = this->username.c_str();
-    headers.push_back(header);
-    header.name = "p";
-    header.value = this->password.c_str();
-    headers.push_back(header);
-  }
-  this->request_->set_headers(headers);
-  this->request_->set_method("GET");
   this->request_->set_useragent("ESPHome InfluxDB Bot");
   this->request_->set_timeout(this->send_timeout);
-
-  // From now own all request are POST.
-  this->request_->set_method("POST");
 
   if (publish_all) {
 #ifdef USE_BINARY_SENSOR
@@ -86,18 +67,28 @@ void InfluxDBWriter::write(std::string measurement,
                            const std::string value, std::string retention,
                            bool is_string) {
   std::replace(measurement.begin(), measurement.end(), '-', '_');
-  std::string line =
-      measurement + " value=" + (is_string ? ("\"" + value + "\"") : value);
-  this->request_->set_url(
-      this->service_url +
-      (retention.empty() ? "" : "&rp=" + retention + "&precision=s"));
-  this->request_->set_body(line.c_str());
-  this->request_->send({});
+  std::string line = measurement + " value=" + (is_string ? ("\"" + value + "\"") : value);
 
-  this->request_->close();
+  std::list<http_request::Header> headers;
+  http_request::Header header;
+  header.name = "Content-Type";
+  header.value = "text/plain";
+  headers.push_back(header);
+  if ((this->username.length() > 0) && (this->password.length() > 0)) {
+    header.name = "u";
+    header.value = this->username.c_str();
+    headers.push_back(header);
+    header.name = "p";
+    header.value = this->password.c_str();
+    headers.push_back(header);
+  }
 
+  this->request_->post(this->service_url + (retention.empty() ? "" : "&rp=" + retention + "&precision=s"), line.c_str(), headers);
   ESP_LOGD(TAG, "InfluxDB packet: %s", line.c_str());
 }
+
+
+
 
 void InfluxDBWriter::dump_config() {
   ESP_LOGCONFIG(TAG, "InfluxDB Writer:");
