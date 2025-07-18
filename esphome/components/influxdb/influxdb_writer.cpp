@@ -108,7 +108,7 @@ void InfluxDBWriter::on_sensor_update(binary_sensor::BinarySensor *obj,
 void InfluxDBWriter::on_sensor_update(sensor::Sensor *obj,
                                       std::string measurement, std::string tags,
                                       std::string retention, float state) {
-  if (!isnan(state))
+  if (!std::isnan(state))
     write(measurement, tags, to_string(state), retention, false);
 }
 #endif
