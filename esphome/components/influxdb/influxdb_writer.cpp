@@ -1,7 +1,7 @@
 #include "influxdb_writer.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
-#include "esphome/components/http_request/http_request_arduino.h"
+#include "esphome/components/http_request/http_request_idf.h"
 #include <algorithm>
 #include <string>
 
@@ -21,7 +21,7 @@ void InfluxDBWriter::setup() {
 
   this->service_url = "http://" + this->host + ":" + to_string(this->port) + "/write?db=" + this->database;
 
-  this->request_ = new http_request::HttpRequestArduino();
+  this->request_ = new http_request::HttpRequestIDF();
   this->request_->setup();
   this->request_->set_useragent("ESPHome InfluxDB Bot");
   this->request_->set_timeout(this->send_timeout);
